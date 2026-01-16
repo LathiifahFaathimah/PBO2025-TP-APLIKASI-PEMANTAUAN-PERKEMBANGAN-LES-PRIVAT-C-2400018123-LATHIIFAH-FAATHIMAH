@@ -1,0 +1,517 @@
+// CetakLaporan
+import java.io.PrintWriter;
+
+public class CetakLaporan {
+
+    public static void buatFile() {
+        try {
+            PrintWriter pw = new PrintWriter("laporan_les.txt");
+
+            for (Murid m : DataLes.data) {
+                pw.println(m.nama + " | " + m.statusMurid() +
+                        " | nilai: " + m.nilaiAkhir() +
+                        " | paket: " + m.paket.getNamaPaket());
+            }
+            pw.close();
+        } catch (Exception e) {
+            System.out.println("Tidak bisa cetak laporan");
+        }
+    }
+}
+
+// DataLes
+import java.util.ArrayList;
+
+public class DataLes {
+    public static ArrayList<Murid> data = new ArrayList<>();
+
+    public static void tambah(Murid m) {
+        data.add(m);
+    }
+
+    public static void hapus(int index) {
+        data.remove(index);
+    }
+}
+
+// FileHelper
+import java.io.*;
+
+public class FileHelper {
+
+    static String namaFile = "murid_les.txt";
+
+    public static void simpan() {
+        try {
+            PrintWriter pw = new PrintWriter(namaFile);
+
+            for (Murid m : DataLes.data) {
+                pw.println(m.nama + "|" + m.hadir + "|" + m.nilai + "|" + m.paket.getNamaPaket());
+            }
+            pw.close();
+        } catch (Exception e) {
+            System.out.println("Gagal simpan data");
+        }
+    }
+
+    public static void baca() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(namaFile));
+            String baris;
+
+            while ((baris = br.readLine()) != null) {
+                String[] d = baris.split("\\|");
+
+                String nama = d[0];
+                int hadir = Integer.parseInt(d[1]);
+                int nilai = Integer.parseInt(d[2]);
+                String p = d[3];
+
+                Paket paket;
+                if (p.contains("Intensif")) paket = new PaketIntensif();
+                else paket = new PaketReguler();
+
+                Murid m;
+                if (hadir >= 75 && nilai >= 70)
+                    m = new MuridAktif(nama, hadir, nilai, paket);
+                else
+                    m = new MuridPasif(nama, hadir, nilai, paket);
+
+                DataLes.tambah(m);
+            }
+
+            br.close();
+        } catch (Exception e) {
+            // kalau file belum ada, biarkan
+        }
+    }
+}
+
+// MainGUI
+import javax.swing.*;
+import java.awt.*;
+import java.io.File;
+
+public class MainGUI extends JFrame {
+
+    CardLayout cardLayout;
+    JPanel panelKonten;
+
+    JTextField txtNama, txtHadir, txtNilai;
+    JRadioButton rbReguler, rbIntensif;
+
+    DefaultListModel<String> listModel = new DefaultListModel<>();
+    JList<String> listMurid = new JList<>(listModel);
+
+    Color pinkTua = new Color(255, 105, 135);
+    Color pinkMuda = new Color(255, 220, 230);
+    Color pinkBackground = new Color(255, 235, 240);
+
+    public MainGUI() {
+        setTitle("Aplikasi Les Mandiri");
+        setSize(1200, 700);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        // ================= HEADER =================
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(pinkTua);
+        header.setPreferredSize(new Dimension(1200, 80));
+
+        JLabel lblTitle = new JLabel("  APLIKASI LES MANDIRI");
+        lblTitle.setForeground(Color.WHITE);
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
+
+        header.add(lblTitle, BorderLayout.WEST);
+        add(header, BorderLayout.NORTH);
+
+        // ================= MENU =================
+        JPanel menu = new JPanel(new GridLayout(6, 1, 15, 20));
+        menu.setBackground(pinkMuda);
+        menu.setPreferredSize(new Dimension(230, 700));
+        menu.setBorder(BorderFactory.createEmptyBorder(25, 15, 25, 15));
+
+        JButton btnBeranda = new JButton("Beranda");
+        JButton btnInput = new JButton("Input Murid");
+        JButton btnData = new JButton("Data Murid");
+        JButton btnLaporan = new JButton("Cetak Laporan");
+
+        styleMenuButton(btnBeranda);
+        styleMenuButton(btnInput);
+        styleMenuButton(btnData);
+        styleMenuButton(btnLaporan);
+
+        menu.add(btnBeranda);
+        menu.add(btnInput);
+        menu.add(btnData);
+        menu.add(btnLaporan);
+
+        add(menu, BorderLayout.WEST);
+
+        // ================= KONTEN =================
+        cardLayout = new CardLayout();
+        panelKonten = new JPanel(cardLayout);
+        panelKonten.setBackground(pinkBackground);
+
+        panelKonten.add(panelBeranda(), "BERANDA");
+        panelKonten.add(panelInput(), "INPUT");
+        panelKonten.add(panelDataMurid(), "DATA");
+
+        add(panelKonten, BorderLayout.CENTER);
+
+        // ================= EVENT =================
+        btnBeranda.addActionListener(e -> cardLayout.show(panelKonten, "BERANDA"));
+        btnInput.addActionListener(e -> cardLayout.show(panelKonten, "INPUT"));
+        btnData.addActionListener(e -> {
+            refreshList();
+            cardLayout.show(panelKonten, "DATA");
+        });
+        btnLaporan.addActionListener(e -> {
+            CetakLaporan.buatFile();
+            bukaFileLaporan();
+        });
+
+        FileHelper.baca();
+    }
+
+    // ================= STYLE =================
+    private void styleMenuButton(JButton btn) {
+        btn.setFocusPainted(false);
+        btn.setBackground(pinkTua);
+        btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(180, 55));
+    }
+
+    // ================= BERANDA =================
+    private JPanel panelBeranda() {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(pinkBackground);
+        p.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+
+        JLabel title = new JLabel("Selamat Datang di Aplikasi Les Mandiri");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        title.setForeground(pinkTua);
+
+        JLabel sub = new JLabel("Pengelolaan murid les menjadi lebih rapi, mudah, dan terstruktur");
+        sub.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+
+        JPanel top = new JPanel(new GridLayout(2,1,10,10));
+        top.setBackground(pinkBackground);
+        top.add(title);
+        top.add(sub);
+
+        p.add(top, BorderLayout.NORTH);
+
+        JPanel grid = new JPanel(new GridLayout(2, 3, 25, 25));
+        grid.setBackground(pinkBackground);
+        grid.setBorder(BorderFactory.createEmptyBorder(40, 0, 0, 0));
+
+        grid.add(card("Input Murid", "Menambahkan data murid baru ke dalam sistem les dengan cepat dan mudah."));
+        grid.add(card("Data Murid", "Melihat seluruh daftar murid yang sudah terdaftar di lembaga les."));
+        grid.add(card("Hapus Murid", "Menghapus data murid yang sudah tidak aktif atau tidak mengikuti les."));
+        grid.add(card("Paket Reguler", "Paket belajar 2x seminggu untuk murid dengan jadwal santai."));
+        grid.add(card("Paket Intensif", "Paket belajar 4x seminggu untuk murid yang ingin lebih fokus belajar."));
+        grid.add(card("Cetak Laporan", "Mencetak seluruh data murid ke file teks sebagai laporan resmi."));
+
+        p.add(grid, BorderLayout.CENTER);
+
+        return p;
+    }
+
+    private JPanel card(String title, String desc) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(pinkTua,2),
+                BorderFactory.createEmptyBorder(20,20,20,20)
+        ));
+
+        JLabel t = new JLabel(title);
+        t.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        t.setForeground(pinkTua);
+
+        JTextArea d = new JTextArea(desc);
+        d.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        d.setLineWrap(true);
+        d.setWrapStyleWord(true);
+        d.setEditable(false);
+        d.setOpaque(false);
+
+        card.add(t, BorderLayout.NORTH);
+        card.add(d, BorderLayout.CENTER);
+
+        return card;
+    }
+
+    // ================= INPUT =================
+    private JPanel panelInput() {
+        JPanel p = new JPanel(new GridBagLayout());
+        p.setBackground(pinkBackground);
+
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(15, 15, 15, 15);
+        c.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel lblTitle = new JLabel("Form Input Data Murid");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        lblTitle.setForeground(pinkTua);
+
+        c.gridx = 0; c.gridy = 0; c.gridwidth = 2;
+        p.add(lblTitle, c);
+
+        c.gridwidth = 1;
+
+        Font labelFont = new Font("Segoe UI", Font.BOLD, 18);
+
+        txtNama = new JTextField();
+        txtHadir = new JTextField();
+        txtNilai = new JTextField();
+
+        txtNama.setPreferredSize(new Dimension(350, 40));
+        txtHadir.setPreferredSize(new Dimension(350, 40));
+        txtNilai.setPreferredSize(new Dimension(350, 40));
+
+        rbReguler = new JRadioButton("Reguler");
+        rbIntensif = new JRadioButton("Intensif");
+        rbReguler.setSelected(true);
+
+        rbReguler.setBackground(pinkBackground);
+        rbIntensif.setBackground(pinkBackground);
+
+        rbReguler.setFont(labelFont);
+        rbIntensif.setFont(labelFont);
+
+        ButtonGroup bg = new ButtonGroup();
+        bg.add(rbReguler);
+        bg.add(rbIntensif);
+
+        JButton btnSimpan = new JButton("SIMPAN DATA");
+        btnSimpan.setBackground(pinkTua);
+        btnSimpan.setForeground(Color.WHITE);
+        btnSimpan.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        btnSimpan.setPreferredSize(new Dimension(200, 45));
+
+        JLabel l1 = new JLabel("Nama Murid");
+        JLabel l2 = new JLabel("Jumlah Hadir");
+        JLabel l3 = new JLabel("Nilai");
+        JLabel l4 = new JLabel("Paket Les");
+
+        l1.setFont(labelFont);
+        l2.setFont(labelFont);
+        l3.setFont(labelFont);
+        l4.setFont(labelFont);
+
+        c.gridx = 0; c.gridy = 1;
+        p.add(l1, c);
+        c.gridx = 1;
+        p.add(txtNama, c);
+
+        c.gridx = 0; c.gridy = 2;
+        p.add(l2, c);
+        c.gridx = 1;
+        p.add(txtHadir, c);
+
+        c.gridx = 0; c.gridy = 3;
+        p.add(l3, c);
+        c.gridx = 1;
+        p.add(txtNilai, c);
+
+        c.gridx = 0; c.gridy = 4;
+        p.add(l4, c);
+        c.gridx = 1;
+        JPanel paketPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        paketPanel.setBackground(pinkBackground);
+        paketPanel.add(rbReguler);
+        paketPanel.add(rbIntensif);
+        p.add(paketPanel, c);
+
+        c.gridx = 1; c.gridy = 5;
+        p.add(btnSimpan, c);
+
+        btnSimpan.addActionListener(e -> simpanMurid());
+
+        return p;
+    }
+
+
+    // ================= DATA =================
+    private JPanel panelDataMurid() {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(pinkBackground);
+        p.setBorder(BorderFactory.createEmptyBorder(20,20,20,20));
+
+        JLabel lbl = new JLabel("Daftar Data Murid");
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        lbl.setForeground(pinkTua);
+
+        listMurid.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+
+        JButton btnHapus = new JButton("HAPUS DATA TERPILIH");
+        btnHapus.setBackground(pinkTua);
+        btnHapus.setForeground(Color.WHITE);
+        btnHapus.setFont(new Font("Segoe UI", Font.BOLD, 16));
+
+        btnHapus.addActionListener(e -> hapusMurid());
+
+        p.add(lbl, BorderLayout.NORTH);
+        p.add(new JScrollPane(listMurid), BorderLayout.CENTER);
+        p.add(btnHapus, BorderLayout.SOUTH);
+
+        return p;
+    }
+
+    // ================= LOGIC =================
+    private void simpanMurid() {
+        try {
+            String nama = txtNama.getText();
+            int hadir = Integer.parseInt(txtHadir.getText());
+            int nilai = Integer.parseInt(txtNilai.getText());
+
+            Paket paket = rbIntensif.isSelected() ? new PaketIntensif() : new PaketReguler();
+
+            Murid m;
+            if (hadir >= 10 && nilai >= 75) {
+                m = new MuridAktif(nama, hadir, nilai, paket);
+            } else {
+                m = new MuridPasif(nama, hadir, nilai, paket);
+            }
+
+            DataLes.tambah(m);
+            FileHelper.simpan();
+            refreshList();
+            clearForm();
+
+            JOptionPane.showMessageDialog(this, "Data murid berhasil disimpan");
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Input tidak valid");
+        }
+    }
+
+    private void refreshList() {
+        listModel.clear();
+        for (Murid m : DataLes.data) {
+            listModel.addElement(
+                    m.nama + " | " + m.statusMurid() +
+                            " | Hadir: " + m.hadir +
+                            " | Nilai: " + m.nilai +
+                            " | Paket: " + m.paket.getNamaPaket()
+            );
+        }
+    }
+
+    private void hapusMurid() {
+        int index = listMurid.getSelectedIndex();
+        if (index != -1) {
+            DataLes.hapus(index);
+            FileHelper.simpan();
+            refreshList();
+            JOptionPane.showMessageDialog(this, "Data murid berhasil dihapus");
+        } else {
+            JOptionPane.showMessageDialog(this, "Pilih data murid terlebih dahulu");
+        }
+    }
+
+    private void clearForm() {
+        txtNama.setText("");
+        txtHadir.setText("");
+        txtNilai.setText("");
+        rbReguler.setSelected(true);
+    }
+
+    private void bukaFileLaporan() {
+        try {
+            File file = new File("laporan_les.txt");
+            Desktop.getDesktop().open(file);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "File laporan tidak dapat dibuka");
+        }
+    }
+
+    public static void main(String[] args) {
+        new MainGUI().setVisible(true);
+    }
+}
+
+// Murid
+public abstract class Murid {
+
+    String nama;
+    int hadir;
+    int nilai;
+    Paket paket;
+
+    public Murid(String n, int h, int v, Paket p) {
+        nama = n;
+        hadir = h;
+        nilai = v;
+        paket = p;
+    }
+
+    public String getNama() {
+        return nama;
+    }
+
+    public abstract String statusMurid();
+
+    public int nilaiAkhir() {
+        return (hadir + nilai) / 2;
+    }
+}
+
+// MuridAktif
+public class MuridAktif extends Murid {
+    public MuridAktif(String n, int h, int v, Paket p) {
+        super(n, h, v, p);
+    }
+
+    @Override
+    public String statusMurid() {
+        return "Aktif";
+    }
+}
+
+// MuridPasif
+public class MuridPasif extends Murid {
+    public MuridPasif(String n, int h, int v, Paket p) {
+        super(n, h, v, p);
+    }
+
+    @Override
+    public String statusMurid() {
+        return "Tidak Aktif";
+    }
+}
+
+// Paket
+public interface Paket {
+    String getNamaPaket();
+    int harga();
+}
+
+// PaketReguler
+public class PaketReguler implements Paket {
+
+    public String getNamaPaket() {
+        return "Reguler 2x seminggu";
+    }
+
+    public int harga() {
+        return 300000;
+    }
+}
+
+// PaketIntensif
+public class PaketIntensif implements Paket {
+
+    public String getNamaPaket() {
+        return "Intensif 4x seminggu";
+    }
+
+    public int harga() {
+        return 500000;
+    }
+}
